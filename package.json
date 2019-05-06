@@ -1,0 +1,8 @@
+{
+  "name": "ingest-api",
+  "version": "1.0.0",
+  "dependencies": {
+    "aws-sdk": "2.7.9",
+    "node-fetch": "1.6.3"
+  }
+}
