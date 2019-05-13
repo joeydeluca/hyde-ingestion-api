@@ -1,4 +1,4 @@
-service: injest-api
+service: trojan
 
 frameworkVersion: ">=1.1.0"
 
@@ -9,6 +9,7 @@ provider:
   name: aws
   runtime: nodejs8.10
   stage: dev
+  timeout: 30
   region: us-east-1
   iamRoleStatements:
     - Effect: Allow
@@ -16,15 +17,32 @@ provider:
         - s3:PutObject
         - s3:PutObjectAcl
       Resource: "arn:aws:s3:::${self:custom.bucket}/*"
+  environment:
+    DB_HOST: ${ssm:TROJAN_DB_HOST}
+    DB_NAME: ${ssm:TROJAN_DB_NAME}
+    DB_PASSWORD: ${ssm:TROJAN_DB_PASSWORD}
+    DB_USER: ${ssm:TROJAN_DB_USER}
 
 functions:
   injest:
-    handler: index.injest
+    handler: functions/injest-api.injest
+    role: arn:aws:iam::205485993174:role/lambda-s3-rek
     memorySize: 128
     environment:
       BUCKET: ${self:custom.bucket}
     events:
       - http: 
           path: image
+          method: post
+          cors: true
+  search:
+    handler: functions/search-api.search
+    role: arn:aws:iam::205485993174:role/lambda-s3-rek
+    memorySize: 128
+    environment:
+      BUCKET: ${self:custom.bucket}
+    events:
+      - http: 
+          path: search
           method: post
           cors: true
