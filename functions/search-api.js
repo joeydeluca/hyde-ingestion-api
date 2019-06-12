@@ -1,5 +1,6 @@
 'use strict';
 
+const url = require('url');
 const fetch = require('node-fetch');
 const AWS = require('aws-sdk'); // eslint-disable-line import/no-extraneous-dependencies
 const rekognition = new AWS.Rekognition();
@@ -17,13 +18,14 @@ mysql.config({
 exports.search = async (event, context) => {
     context.callbackWaitsForEmptyEventLoop = false;
 
-    const profiles = await
+    let profiles = await
         downloadImage(JSON.parse(event.body)['image-url'])
         .then(findFaceIds)
-        .then(findProfiles);
+        .then(findProfiles)
+        .catch(error => {});
 
-    if (profiles === undefined || profiles.length == 0) {
-        return { statusCode: 404 };
+    if (profiles === undefined || profiles.length === 0) {
+        return { statusCode: 200 };
     }
 
     return { body: profiles, statusCode: 200 };
@@ -87,5 +89,7 @@ const findProfiles = async (faceIds) => {
 
     await mysql.end();
 
-    return JSON.stringify(profiles.map(({source_image_url, source_site_url}) => ({'image-url': source_image_url, 'site-url':source_site_url})));
+    return JSON.stringify(
+        profiles.filter(obj => !!obj.source_site_url)
+        .map(({source_image_url, source_site_url}) => ({'image-url': source_image_url, 'site-url': url.parse(source_site_url).hostname})));
 }

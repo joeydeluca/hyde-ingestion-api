@@ -30,11 +30,12 @@ const processImage = async (obj, requestId) => {
     const imageName = encodeURIComponent(siteUrl + imageUrl);
     const s3Bucket = process.env.BUCKET;
 
-    return await
-        downloadImage(imageUrl)
-        .then((bufferedImage) => uploadToS3(bufferedImage, imageName, s3Bucket))
-        .then(() => indexFaces(imageName, s3Bucket))
-        .then((faceIds) => saveToDB(faceIds, imageUrl, siteUrl, imageName, s3Bucket));
+    const bufferedImage = await downloadImage(imageUrl);
+    const faceIds = await indexFaces(bufferedImage);
+    if(!faceIds || faceIds.length == 0) return;
+
+    await uploadToS3(bufferedImage, imageName, s3Bucket)
+        .then(() => saveToDB(faceIds, imageUrl, siteUrl, imageName, s3Bucket));
 };
 
 const downloadImage = (imageUrl) => {
@@ -62,16 +63,13 @@ const uploadToS3 = (bufferedImage, imageName, s3Bucket) => {
      }).promise();
 }
 
-const indexFaces = (imageName, s3Bucket) => {
+const indexFaces = (bufferedImage) => {
     console.log('attempting to index all faces in image');
 
     var params = {
         CollectionId: 'faces',
         Image: {
-            S3Object: {
-            Bucket: s3Bucket,
-            Name: imageName
-            }
+            Bytes: bufferedImage
         }
     };
 

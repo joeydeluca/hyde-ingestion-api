@@ -11,3 +11,4 @@ CREATE TABLE `faces` (
 
 CREATE INDEX idx_face_id ON faces(face_id);
 CREATE UNIQUE INDEX idx_img_site ON faces(source_image_url, source_site_url);
+CREATE UNIQUE INDEX idx_face_site ON faces(face_id, source_site_url);
