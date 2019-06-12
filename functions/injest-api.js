@@ -30,12 +30,17 @@ const processImage = async (obj, requestId) => {
     const imageName = encodeURIComponent(siteUrl + imageUrl);
     const s3Bucket = process.env.BUCKET;
 
-    const bufferedImage = await downloadImage(imageUrl);
-    const faceIds = await indexFaces(bufferedImage);
-    if(!faceIds || faceIds.length == 0) return;
+    try {
+        const bufferedImage = await downloadImage(imageUrl);
+        const faceIds = await indexFaces(bufferedImage);
+        if(!faceIds || faceIds.length == 0) return;
 
-    await uploadToS3(bufferedImage, imageName, s3Bucket)
-        .then(() => saveToDB(faceIds, imageUrl, siteUrl, imageName, s3Bucket));
+        await uploadToS3(bufferedImage, imageName, s3Bucket)
+            .then(() => saveToDB(faceIds, imageUrl, siteUrl, imageName, s3Bucket));
+    }
+    catch(err) {
+        console.log(err);
+    }
 };
 
 const downloadImage = (imageUrl) => {
