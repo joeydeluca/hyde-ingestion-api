@@ -13,6 +13,9 @@ mysql.config({
     password : process.env.DB_PASSWORD,
     database : process.env.DB_NAME
 });
+const excludedWebsites = [
+    'cdn'
+];
 
 exports.injest = async (event, context) => {
     context.callbackWaitsForEmptyEventLoop = false;
@@ -29,6 +32,10 @@ const processImage = async (obj, requestId) => {
     const siteUrl = obj['site-url'];
     const imageName = encodeURIComponent(siteUrl + imageUrl);
     const s3Bucket = process.env.BUCKET;
+
+    if(isWebsiteExcluded(siteUrl)) {
+        return;
+    }
 
     try {
         const bufferedImage = await downloadImage(imageUrl);
@@ -111,4 +118,14 @@ const saveToDB = async (faceIds, sourceImageUrl, sourceSiteUrl, s3Name, s3Bucket
 
     await mysql.end();
     console.log('db save complete');
+}
+
+const isWebsiteExcluded = (websiteUrl) => {
+    for(let exludedString of excludedWebsites) {
+        if(websiteUrl.indexOf(exludedString) >= 0) {
+            return true;
+        }
+    }
+
+    return false;
 }
