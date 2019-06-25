@@ -2,6 +2,7 @@
 
 const fetch = require('node-fetch');
 const AWS = require('aws-sdk'); // eslint-disable-line import/no-extraneous-dependencies
+const sqs = new AWS.SQS({apiVersion: '2012-11-05'});
 const rekognition = new AWS.Rekognition();
 const s3 = new AWS.S3();
 const mysql = require('serverless-mysql')({
@@ -17,11 +18,11 @@ const excludedWebsites = [
     'cdn'
 ];
 
-exports.injest = async (event, context) => {
+exports.handler = async (event, context) => {
     context.callbackWaitsForEmptyEventLoop = false;
 
-    for(const obj of JSON.parse(event.body)) {
-        await processImage(obj, context.awsRequestId);
+    for(const obj of event.Records) {
+        await processImage(JSON.parse(obj.body), context.awsRequestId);
     }; 
 
     return { statusCode: 200 };
@@ -129,3 +130,38 @@ const isWebsiteExcluded = (websiteUrl) => {
 
     return false;
 }
+
+
+
+// exports.handler = async function(event, context) {
+//   event.Records.forEach(record => {
+//     const { body } = record;
+//     console.log(body);
+//   });
+//   return {};
+// }
+
+// var params = {
+//     MaxNumberOfMessages: 10,
+//     QueueUrl: process.env.QUEUE_URL,
+//     VisibilityTimeout: 20,
+//     WaitTimeSeconds: 0
+// };
+
+// sqs.receiveMessage(params, function(err, data) {
+//   if (err) {
+//     console.log("Receive Error", err);
+//   } else if (data.Messages) {
+//     var deleteParams = {
+//       QueueUrl: queueURL,
+//       ReceiptHandle: data.Messages[0].ReceiptHandle
+//     };
+//     sqs.deleteMessage(deleteParams, function(err, data) {
+//       if (err) {
+//         console.log("Delete Error", err);
+//       } else {
+//         console.log("Message Deleted", data);
+//       }
+//     });
+//   }
+// });

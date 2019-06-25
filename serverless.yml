@@ -22,19 +22,28 @@ provider:
     DB_NAME: ${ssm:TROJAN_DB_NAME}
     DB_PASSWORD: ${ssm:TROJAN_DB_PASSWORD}
     DB_USER: ${ssm:TROJAN_DB_USER}
+    QUEUE_URL: https://sqs.us-east-1.amazonaws.com/205485993174/ingest
 
 functions:
-  injest:
-    handler: functions/injest-api.injest
+  injest-publisher:
+    handler: functions/injest-publisher.injest
     role: arn:aws:iam::205485993174:role/lambda-s3-rek
     memorySize: 128
-    environment:
-      BUCKET: ${self:custom.bucket}
     events:
       - http: 
           path: image
           method: post
           cors: true
+  ingest-subscriber:
+    handler: functions/injest-subscriber.handler
+    role: arn:aws:iam::205485993174:role/lambda-s3-rek
+    memorySize: 128
+    environment:
+      BUCKET: ${self:custom.bucket}
+    events:
+      - sqs:
+          arn: "arn:aws:sqs:${self:provider.region}:205485993174:ingest"
+          batchSize: 10
   search:
     handler: functions/search-api.search
     role: arn:aws:iam::205485993174:role/lambda-s3-rek
