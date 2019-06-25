@@ -25,8 +25,8 @@ provider:
     QUEUE_URL: https://sqs.us-east-1.amazonaws.com/205485993174/ingest
 
 functions:
-  injest-publisher:
-    handler: functions/injest-publisher.injest
+  ingest-publisher:
+    handler: functions/ingest-publisher.ingest
     role: arn:aws:iam::205485993174:role/lambda-s3-rek
     memorySize: 128
     events:
@@ -35,7 +35,7 @@ functions:
           method: post
           cors: true
   ingest-subscriber:
-    handler: functions/injest-subscriber.handler
+    handler: functions/ingest-subscriber.handler
     role: arn:aws:iam::205485993174:role/lambda-s3-rek
     memorySize: 128
     environment:
