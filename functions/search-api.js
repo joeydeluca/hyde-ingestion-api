@@ -14,6 +14,7 @@ mysql.config({
     password : process.env.DB_PASSWORD,
     database : process.env.DB_NAME
 });
+const maxFileSizeInBytes = 5242880; // 5MB
 
 exports.search = async (event, context) => {
     context.callbackWaitsForEmptyEventLoop = false;
@@ -34,7 +35,7 @@ exports.search = async (event, context) => {
 const downloadImage = async (imageUrl) => {
     console.log(`attempting to download image ${imageUrl}`);
 
-    return fetch(imageUrl)
+    return fetch(imageUrl, { size: maxFileSizeInBytes })
         .then(
             (response) => {
             if (response.ok) {

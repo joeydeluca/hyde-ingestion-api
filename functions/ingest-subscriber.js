@@ -1,5 +1,6 @@
 'use strict';
 
+const fileType = require('file-type');
 const url = require('url');
 const fetch = require('node-fetch');
 const AWS = require('aws-sdk'); // eslint-disable-line import/no-extraneous-dependencies
@@ -18,6 +19,7 @@ mysql.config({
 const excludedWebsites = [
     'cdn'
 ];
+const maxFileSizeInBytes = 5242880; // 5MB
 
 exports.handler = async (event, context) => {
     context.callbackWaitsForEmptyEventLoop = false;
@@ -43,13 +45,30 @@ const processImage = async (obj, requestId) => {
 
     if (
         isWebsiteExcluded(siteUrl) ||
-        await doesImageUrlAndSiteUrlExistInDB(imageUrl, parsedSiteUrl.protocol + '//' + parsedSiteUrl.hostname) ||
-        await doesImageContainFace(imageUrl) === false) {
+        await doesImageUrlAndSiteUrlExistInDB(imageUrl, parsedSiteUrl.protocol + '//' + parsedSiteUrl.hostname)) {
+        return;
+    }
+
+    let bufferedImage;
+    try {
+        bufferedImage = await downloadImage(imageUrl);
+        if (!isFileTypeSupported(bufferedImage)) {
+            return;
+        }
+    } catch(e) {
+        console.log(e);
+        return;
+    }
+
+    if (!isFileTypeSupported(bufferedImage)) {
+        return;
+    }
+
+    if (await doesImageContainFace(imageUrl) === false) {
         return;
     }
 
     try {
-        const bufferedImage = await downloadImage(imageUrl);
         const faceIds = await indexFaces(bufferedImage);
         if(!faceIds || faceIds.length == 0) return;
 
@@ -64,7 +83,7 @@ const processImage = async (obj, requestId) => {
 const downloadImage = (imageUrl) => {
     console.log(`attempting to download image ${imageUrl}`);
 
-    return fetch(imageUrl)
+    return fetch(imageUrl, { size: maxFileSizeInBytes })
         .then(
             (response) => {
             if (response.ok) {
@@ -159,6 +178,7 @@ const doesImageUrlAndSiteUrlExistInDB = async (imageUrl, siteHostname) => {
 }
 
 const doesImageContainFace = async (imageUrl) => {
+    console.log('Checking if image contains a face');
     return fetch(process.env.DETECT_FACES_URL + encodeURIComponent(imageUrl))
         .then(async (response) => {
             if (response.ok) {
@@ -173,4 +193,22 @@ const doesImageContainFace = async (imageUrl) => {
         .catch(e => {
             console.log(e); return false;
         });
+}
+
+const isFileTypeSupported = (buffer) => {
+    const type = fileType(buffer);
+
+    if (type == undefined) {
+        console.log('Unable to determine file type.')
+        return false;
+    }
+
+    if (type.mime === 'image/jpg' || 
+        type.mime === 'image/jpeg' ||
+        type.mime === 'image/png') {
+        return true;
+    }
+
+    console.log(`Unsupported file type: ${type.mime}`);
+    return false;
 }
