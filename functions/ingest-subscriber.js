@@ -1,5 +1,6 @@
 'use strict';
 
+const url = require('url');
 const fetch = require('node-fetch');
 const AWS = require('aws-sdk'); // eslint-disable-line import/no-extraneous-dependencies
 const sqs = new AWS.SQS({apiVersion: '2012-11-05'});
@@ -34,7 +35,16 @@ const processImage = async (obj, requestId) => {
     const imageName = encodeURIComponent(siteUrl + imageUrl);
     const s3Bucket = process.env.BUCKET;
 
-    if(isWebsiteExcluded(siteUrl)) {
+    let parsedSiteUrl = url.parse(siteUrl);
+    if (parsedSiteUrl.hostname == null) {
+        console.log(`Bad format for site-url: ${siteUrl}`);
+        return;
+    }
+
+    if (
+        isWebsiteExcluded(siteUrl) ||
+        await doesImageUrlAndSiteUrlExistInDB(imageUrl, parsedSiteUrl.protocol + '//' + parsedSiteUrl.hostname) ||
+        await doesImageContainFace(imageUrl) === false) {
         return;
     }
 
@@ -131,37 +141,36 @@ const isWebsiteExcluded = (websiteUrl) => {
     return false;
 }
 
+const doesImageUrlAndSiteUrlExistInDB = async (imageUrl, siteHostname) => {
+    try {
+        const result = await mysql.query({
+            sql: 'SELECT COUNT(*) AS count from faces where source_image_url = ? AND source_site_url like ?',
+            values: [imageUrl, siteHostname + '%']
+        });
+        if(result.length === 1 && result[0].count > 0) {
+            console.log(`image/site pair already exist in db image=${imageUrl} site=${siteHostname}`);
+            return true;
+        }
+        return false;
+    } catch(err) {
+        console.log(err);
+        return false;
+    }
+}
 
-
-// exports.handler = async function(event, context) {
-//   event.Records.forEach(record => {
-//     const { body } = record;
-//     console.log(body);
-//   });
-//   return {};
-// }
-
-// var params = {
-//     MaxNumberOfMessages: 10,
-//     QueueUrl: process.env.QUEUE_URL,
-//     VisibilityTimeout: 20,
-//     WaitTimeSeconds: 0
-// };
-
-// sqs.receiveMessage(params, function(err, data) {
-//   if (err) {
-//     console.log("Receive Error", err);
-//   } else if (data.Messages) {
-//     var deleteParams = {
-//       QueueUrl: queueURL,
-//       ReceiptHandle: data.Messages[0].ReceiptHandle
-//     };
-//     sqs.deleteMessage(deleteParams, function(err, data) {
-//       if (err) {
-//         console.log("Delete Error", err);
-//       } else {
-//         console.log("Message Deleted", data);
-//       }
-//     });
-//   }
-// });
+const doesImageContainFace = async (imageUrl) => {
+    return fetch(process.env.DETECT_FACES_URL + encodeURIComponent(imageUrl))
+        .then(async (response) => {
+            if (response.ok) {
+                const count = await response.text();
+                return count != 0;
+            }
+            console.log('Unable to invoke detect faces api: ' + JSON.stringify(response));
+            return false;
+            }, 
+            (error) => {console.log(error); return false;}
+        )
+        .catch(e => {
+            console.log(e); return false;
+        });
+}

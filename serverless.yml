@@ -2,12 +2,15 @@ service: trojan
 
 frameworkVersion: ">=1.1.0"
 
+package:
+  exclude:
+    - layers/**
+
 custom:
   bucket: trojan-faces
 
 provider:
   name: aws
-  runtime: nodejs8.10
   stage: dev
   timeout: 30
   region: us-east-1
@@ -23,11 +26,13 @@ provider:
     DB_PASSWORD: ${ssm:TROJAN_DB_PASSWORD}
     DB_USER: ${ssm:TROJAN_DB_USER}
     QUEUE_URL: https://sqs.us-east-1.amazonaws.com/205485993174/ingest
+    DETECT_FACES_URL: https://8ye3e8y414.execute-api.us-east-1.amazonaws.com/dev/face-count?image-url=
 
 functions:
   ingest-publisher:
     handler: functions/ingest-publisher.ingest
     role: arn:aws:iam::205485993174:role/lambda-s3-rek
+    runtime: nodejs8.10
     memorySize: 128
     events:
       - http: 
@@ -37,6 +42,7 @@ functions:
   ingest-subscriber:
     handler: functions/ingest-subscriber.handler
     role: arn:aws:iam::205485993174:role/lambda-s3-rek
+    runtime: nodejs8.10
     memorySize: 128
     environment:
       BUCKET: ${self:custom.bucket}
@@ -47,6 +53,7 @@ functions:
   search:
     handler: functions/search-api.search
     role: arn:aws:iam::205485993174:role/lambda-s3-rek
+    runtime: nodejs8.10
     memorySize: 128
     environment:
       BUCKET: ${self:custom.bucket}
@@ -54,4 +61,18 @@ functions:
       - http: 
           path: search
           method: post
+          cors: true
+  detect-faces:
+    handler: functions/face-count-api.handle
+    role: arn:aws:iam::205485993174:role/lambda-s3-rek
+    memorySize: 128
+    runtime: python3.6
+    environment:
+      PYTHONPATH: /opt/
+    layers:
+      - arn:aws:lambda:us-east-1:205485993174:layer:opencv-python:1
+    events:
+      - http: 
+          path: face-count
+          method: get
           cors: true
