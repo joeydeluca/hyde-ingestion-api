@@ -34,7 +34,8 @@ exports.handler = async (event, context) => {
 const processImage = async (obj, requestId) => {
     const imageUrl = obj['image-url'];
     const siteUrl = obj['site-url'];
-    const imageName = encodeURIComponent(siteUrl + imageUrl);
+    const clientId = obj['client-id'];
+    const imageName = requestId + '___' + siteUrl.replace(/\W/g, '') + '___' + imageUrl.replace(/\W/g, '')
     const s3Bucket = process.env.BUCKET;
 
     let parsedSiteUrl = url.parse(siteUrl);
@@ -73,7 +74,7 @@ const processImage = async (obj, requestId) => {
         if(!faceIds || faceIds.length == 0) return;
 
         await uploadToS3(bufferedImage, imageName, s3Bucket)
-            .then(() => saveToDB(faceIds, imageUrl, siteUrl, imageName, s3Bucket));
+            .then(() => saveToDB(faceIds, imageUrl, siteUrl, imageName, s3Bucket, clientId));
     }
     catch(err) {
         console.log(err);
@@ -101,7 +102,8 @@ const uploadToS3 = (bufferedImage, imageName, s3Bucket) => {
     return s3.putObject({
         Bucket: s3Bucket,
         Key: imageName,
-        Body: bufferedImage
+        Body: bufferedImage,
+        ACL:'public-read'
      }).promise();
 }
 
@@ -130,14 +132,14 @@ const indexFaces = (bufferedImage) => {
     });
 }
 
-const saveToDB = async (faceIds, sourceImageUrl, sourceSiteUrl, s3Name, s3Bucket) => {
+const saveToDB = async (faceIds, sourceImageUrl, sourceSiteUrl, s3Name, s3Bucket, clientId) => {
     console.log(`saving ${faceIds.length} faces in db`);
 
     for (let faceId of faceIds) {
         try {
             await mysql.query({
-                sql: 'INSERT INTO `faces` SET face_id = ?, source_image_url = ?, source_site_url = ?, s3_name = ?, s3_bucket = ?, created_date = CURRENT_TIMESTAMP()',
-                values: [faceId, sourceImageUrl, sourceSiteUrl, s3Name, s3Bucket]
+                sql: 'INSERT INTO `faces` SET face_id = ?, source_image_url = ?, source_site_url = ?, s3_name = ?, s3_bucket = ?, client_id = ?, created_date = CURRENT_TIMESTAMP()',
+                values: [faceId, sourceImageUrl, sourceSiteUrl, s3Name, s3Bucket, clientId]
             });
         } catch(err) {
             if(!err.toString().includes('ER_DUP_ENTRY')) {

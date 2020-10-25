@@ -5,7 +5,7 @@ AWS.config.update({region: 'us-east-1'});
 const sqs = new AWS.SQS({apiVersion: '2012-11-05'});
 
 exports.ingest = async (event, context, callback) => {
-    await publishMessagesInBatches(JSON.parse(event.body));
+    await publishMessagesInBatches(JSON.parse(event.body), event.headers["client-id"]);
 
     callback(null, { statusCode: 200 });
 };
@@ -13,33 +13,34 @@ exports.ingest = async (event, context, callback) => {
 /**
  * Given the input messages, publish messages to SQS in batches of 10
  */
-const publishMessagesInBatches = async (allMessages) => {
+const publishMessagesInBatches = async (allMessages, clientId) => {
     let limitedBatchedMessages = [];
 
     for(let i = 0; i < allMessages.length; i++) {
         limitedBatchedMessages.push(allMessages[i]);
 
         if(i % 10 === 0) {
-            await publishToSQS(limitedBatchedMessages);
+            await publishToSQS(limitedBatchedMessages, clientId);
             limitedBatchedMessages = [];
         }
     }
 
     if(limitedBatchedMessages.length > 0) {
-        await publishToSQS(limitedBatchedMessages);
+        await publishToSQS(limitedBatchedMessages, clientId);
     }
 }
 
 /**
  * Publishes messages to SQS. Max 10 Batched images.
  */
-const publishToSQS = async (messages) => {
+const publishToSQS = async (messages, clientId) => {
     const params = {
         Entries: messages.map((m, index) => { return {
             Id: index.toString(),
             MessageBody: JSON.stringify({
                 'site-url': m['site-url'],
                 'image-url': m['image-url'],
+                'client-id': clientId,
             }),
             DelaySeconds: '1',
         }}),

@@ -32,7 +32,7 @@ functions:
   ingest-publisher:
     handler: functions/ingest-publisher.ingest
     role: arn:aws:iam::205485993174:role/lambda-s3-rek
-    runtime: nodejs8.10
+    runtime: nodejs12.x
     memorySize: 128
     events:
       - http: 
@@ -42,7 +42,7 @@ functions:
   ingest-subscriber:
     handler: functions/ingest-subscriber.handler
     role: arn:aws:iam::205485993174:role/lambda-s3-rek
-    runtime: nodejs8.10
+    runtime: nodejs12.x
     memorySize: 128
     environment:
       BUCKET: ${self:custom.bucket}
@@ -53,7 +53,7 @@ functions:
   search:
     handler: functions/search-api.search
     role: arn:aws:iam::205485993174:role/lambda-s3-rek
-    runtime: nodejs8.10
+    runtime: nodejs12.x
     memorySize: 128
     environment:
       BUCKET: ${self:custom.bucket}

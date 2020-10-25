@@ -92,5 +92,5 @@ const findProfiles = async (faceIds) => {
 
     return JSON.stringify(
         profiles.filter(obj => !!obj.source_site_url)
-        .map(({source_image_url, source_site_url}) => ({'image-url': source_image_url, 'site-url': url.parse(source_site_url).hostname})));
+        .map(({s3_bucket, s3_name, source_site_url}) => ({'image-url': 'https://'+s3_bucket+'.s3.amazonaws.com/'+s3_name, 'site-url': url.parse(source_site_url).hostname})));
 }
